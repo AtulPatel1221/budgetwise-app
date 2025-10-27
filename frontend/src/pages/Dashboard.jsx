@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+} from "recharts";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState({});
   const [transactions, setTransactions] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
 
-  // ✅ Fetch user profile
+  const COLORS = ["#4F46E5", "#22C55E", "#F97316", "#06B6D4", "#E11D48", "#8B5CF6"];
+
+  // ✅ Fetch user and transactions
   const fetchUser = async () => {
     try {
       const res = await API.get("/user/profile");
@@ -17,7 +25,6 @@ export default function Dashboard() {
     }
   };
 
-  // ✅ Fetch all transactions
   const fetchTransactions = async () => {
     try {
       const res = await API.get("/transactions");
@@ -27,9 +34,23 @@ export default function Dashboard() {
     }
   };
 
+  // ✅ Fetch analytics data for mini charts
+  const fetchAnalytics = async () => {
+    try {
+      const catRes = await API.get("/analytics/category-summary");
+      const monRes = await API.get("/analytics/monthly-summary");
+      const formattedCat = Object.entries(catRes.data).map(([name, value]) => ({ name, value }));
+      setCategoryData(formattedCat);
+      setMonthlyData(monRes.data);
+    } catch (err) {
+      console.error("Error fetching analytics data:", err);
+    }
+  };
+
   useEffect(() => {
     fetchUser();
     fetchTransactions();
+    fetchAnalytics();
   }, []);
 
   // 💰 Summary Calculations
@@ -99,21 +120,70 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 📊 Chart Placeholders (Future Recharts Integration) */}
+        {/* 📊 Mini Chart Previews */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md h-80 flex flex-col justify-center items-center">
-            <h3 className="text-xl font-bold mb-2 text-indigo-700">
-              Pie Chart - Category Wise Expense
+          {/* Pie Chart Preview */}
+          <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md h-80">
+            <h3 className="text-xl font-bold mb-4 text-indigo-700 text-center">
+              Category-wise Spending (Preview)
             </h3>
-            <p className="text-gray-500">📊 Chart will appear here soon.</p>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={100}
+                    fill="#8884d8"
+                    label
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-gray-500 mt-12">No data available</p>
+            )}
           </div>
 
-          <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md h-80 flex flex-col justify-center items-center">
-            <h3 className="text-xl font-bold mb-2 text-indigo-700">
-              Bar Chart - Income vs Expense
+          {/* Bar Chart Preview */}
+          <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md h-80">
+            <h3 className="text-xl font-bold mb-4 text-indigo-700 text-center">
+              Monthly Income vs Expense (Preview)
             </h3>
-            <p className="text-gray-500">📈 Chart will appear here soon.</p>
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="income" fill="#22C55E" />
+                  <Bar dataKey="expense" fill="#EF4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-gray-500 mt-12">No data available</p>
+            )}
           </div>
+        </div>
+
+        {/* 🔗 View Full Analytics */}
+        <div className="text-center mb-12">
+          <Link
+            to="/analytics"
+            className="bg-indigo-600 text-white px-8 py-3 rounded-full shadow-md hover:bg-indigo-700 font-semibold transition"
+          >
+            View Full Analytics Dashboard →
+          </Link>
         </div>
 
         {/* 🧾 Recent Transactions */}
@@ -180,7 +250,6 @@ export default function Dashboard() {
               👤 View Profile
             </button>
           </div>
-
           <div className="text-gray-100 italic text-lg mt-4 md:mt-0">
             💬 {tip}
           </div>

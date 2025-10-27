@@ -7,6 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BudgetwiseApplication {
     public static void main(String[] args) {
         SpringApplication.run(BudgetwiseApplication.class, args);
-        System.out.println("🚀 JWT Authentication App started...");
+        System.out.println("Budjetwise App started...");
     }
 }
