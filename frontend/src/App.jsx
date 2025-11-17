@@ -10,6 +10,10 @@ import Budgets from "./pages/Budgets.jsx";
 import Goals from "./pages/Goals.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Analytics from "./pages/Analytics";
+import Reports from "./pages/Reports";
+import Forum from "./pages/Forum";
+import Chatbot from "./pages/Chatbot";
+
 
 export default function App() {
   return (
@@ -61,6 +65,14 @@ export default function App() {
         />
 
         <Route
+  path="/reports"
+  element={
+    <ProtectedRoute>
+      <Reports />
+    </ProtectedRoute>
+  }
+/>
+        <Route
           path="/profile"
           element={
             <ProtectedRoute>
@@ -68,6 +80,24 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+  path="/chatbot"
+  element={
+    <ProtectedRoute>
+      <Chatbot />
+    </ProtectedRoute>
+  }
+/>
+
+        <Route
+  path="/forum"
+  element={
+    <ProtectedRoute>
+      <Forum />
+    </ProtectedRoute>
+  }
+/>
 
 <Route
   path="/analytics"
@@ -77,7 +107,6 @@ export default function App() {
     </ProtectedRoute>
   }
 />
-
       </Routes>
     </div>
   );
