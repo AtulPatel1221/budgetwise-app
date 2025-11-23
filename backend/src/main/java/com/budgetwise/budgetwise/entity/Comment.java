@@ -19,12 +19,18 @@ public class Comment {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"password"})     // remove sensitive fields
+    @JoinColumn(name = "user_id")
+    @JsonIgnore   // ✅ prevents lazy proxy crash
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnore                             // ⭐ STOP POST → COMMENT → POST LOOP
+    @JsonIgnore   // ✅ stops infinite loop
     private Post post;
+
+    // Safe username exposure
+    public String getUsername() {
+        return user != null ? user.getUsername() : null;
+    }
 
     // Getters & Setters
     public Long getId() { return id; }

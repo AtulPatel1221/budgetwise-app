@@ -72,33 +72,21 @@ export default function Forum() {
   };
 
   return (
-    <div
-      className="
-        min-h-screen 
-        px-4 md:px-6 py-10 
-        bg-gradient-to-br 
-        from-[#4c1d95] via-[#6d28d9] to-[#db2777]
-      "
-    >
+    <div className="min-h-screen px-4 md:px-6 py-10 bg-gradient-to-br from-[#4c1d95] via-[#6d28d9] to-[#db2777]">
       <div className="max-w-3xl mx-auto">
 
-        {/* 🟢 SECTION HEADER */}
         <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-          <span className="text-green-300 text-xl">💬</span> Latest Discussions
+          💬 Latest Discussions
         </h1>
 
-        {/* 🟢 Create New Post */}
+        {/* CREATE POST */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white shadow-md rounded-2xl p-5 mb-10 border border-gray-200"
+          className="bg-white shadow-md rounded-2xl p-5 mb-10"
         >
-          <h2 className="text-gray-700 font-semibold mb-3">
-            What's on your mind?
-          </h2>
-
           <textarea
-            className="w-full border border-gray-300 p-3 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border p-3 rounded-xl"
             placeholder="Share your thoughts..."
             rows={3}
             value={newPost.content}
@@ -109,27 +97,27 @@ export default function Forum() {
 
           <button
             onClick={createPost}
-            className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl font-semibold transition"
+            className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-xl"
           >
             Post to Community
           </button>
         </motion.div>
 
-        {/* 🟢 Posts List */}
+        {/* POSTS */}
         {posts.map((p) => (
           <motion.div
             key={p.id}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white shadow-md rounded-2xl p-5 mb-6 border border-gray-200"
+            className="bg-white shadow-md rounded-2xl p-5 mb-6"
           >
-            {/* USER */}
+            {/* USER HEADER */}
             <div className="flex items-center gap-3 mb-3">
               <div className="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                {p.user.username.charAt(0).toUpperCase()}
+                {(p.username || "U")[0].toUpperCase()}
               </div>
               <div>
-                <p className="font-semibold text-gray-800">{p.user.username}</p>
+                <p className="font-semibold text-gray-800">
+                  {p.username || "Unknown"}
+                </p>
                 <p className="text-xs text-gray-500">
                   {new Date(p.createdAt).toLocaleString()}
                 </p>
@@ -137,34 +125,31 @@ export default function Forum() {
             </div>
 
             {/* CONTENT */}
-            <p className="text-gray-700 leading-relaxed">{p.content}</p>
+            <p className="text-gray-700">{p.content}</p>
 
             {/* ACTIONS */}
             <div className="flex items-center gap-6 text-gray-600 text-sm mt-4">
-
               <button
                 onClick={() => likePost(p.id)}
-                className="flex items-center gap-1 hover:text-green-600 transition"
+                className="flex items-center gap-1"
               >
                 <Heart
                   size={18}
-                  className={`${
-                    likedPosts.has(p.id) ? "text-red-500 fill-red-500" : ""
-                  }`}
+                  className={likedPosts.has(p.id) ? "text-red-500 fill-red-500" : ""}
                 />
                 {p.likesCount} Likes
               </button>
 
               <div className="flex items-center gap-1">
                 <MessageCircle size={18} />
-                {p.comments.length} Comments
+                {(p.comments || []).length} Comments
               </div>
             </div>
 
             {/* COMMENT INPUT */}
             <div className="mt-4 flex items-center gap-2">
               <input
-                className="flex-1 border border-gray-300 p-2 rounded-xl bg-gray-50 focus:ring-2 focus:ring-indigo-400"
+                className="flex-1 border p-2 rounded-xl"
                 placeholder="Write a comment..."
                 value={commentText[p.id] || ""}
                 onChange={(e) =>
@@ -174,22 +159,24 @@ export default function Forum() {
 
               <button
                 onClick={() => addComment(p.id)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-xl"
+                className="bg-indigo-600 text-white p-2 rounded-xl"
               >
                 <Send size={18} />
               </button>
             </div>
 
-            {/* COMMENTS */}
-            {p.comments.length > 0 && (
-              <div className="mt-4 space-y-3">
+            {/* COMMENTS LIST */}
+            {(p.comments || []).length > 0 && (
+              <div className="mt-4 space-y-2">
                 {p.comments.map((c) => (
                   <div
                     key={c.id}
-                    className="bg-gray-50 border border-gray-200 p-2 rounded-xl shadow-sm"
+                    className="bg-gray-50 border p-2 rounded-xl"
                   >
-                    <p className="text-gray-700 text-sm">{c.content}</p>
-                    <p className="text-xs text-gray-500">— {c.user.username}</p>
+                    <p className="text-sm">{c.content}</p>
+                    <p className="text-xs text-gray-500">
+                      — {c.username || "Anonymous"}
+                    </p>
                   </div>
                 ))}
               </div>

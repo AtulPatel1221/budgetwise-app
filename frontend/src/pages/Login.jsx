@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -15,9 +16,19 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await API.post("/auth/login", data);
+
+      // Save auth data
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("role", res.data.role);
+
       alert(`Welcome back, ${res.data.username}!`);
-      nav("/dashboard");
+
+      // Redirect user based on role
+      if (res.data.role === "ADMIN") {
+        nav("/admin");
+      } else {
+        nav("/dashboard");
+      }
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Invalid credentials!");
@@ -34,42 +45,21 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
       >
-        {/* Left side illustration */}
-        <motion.div
-          className="bg-gradient-to-br from-indigo-700 to-purple-600 text-white flex flex-col justify-center p-10"
-          initial={{ x: -50 }}
-          animate={{ x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <motion.h2
-            className="text-4xl font-extrabold mb-3"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            Welcome Back 👋
-          </motion.h2>
-          <motion.p
-            className="text-lg text-indigo-100"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+        {/* Left side UI */}
+        <div className="bg-gradient-to-br from-indigo-700 to-purple-600 text-white flex flex-col justify-center p-10">
+          <h2 className="text-4xl font-extrabold mb-3">Welcome Back 👋</h2>
+          <p className="text-lg text-indigo-100">
             Log in to manage your income, expenses, and goals with{" "}
             <span className="font-bold">BudgetWise</span>.
-          </motion.p>
-        </motion.div>
+          </p>
+        </div>
 
-        {/* Right side form */}
-        <motion.div
-          className="p-10 flex flex-col justify-center"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-        >
+        {/* Right side - Login Form */}
+        <div className="p-10 flex flex-col justify-center">
           <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
             Login to BudgetWise
           </h2>
+
           <form onSubmit={submit} className="space-y-5">
             <input
               name="username"
@@ -80,6 +70,7 @@ export default function Login() {
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               required
             />
+
             <input
               name="password"
               type="password"
@@ -89,9 +80,20 @@ export default function Login() {
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               required
             />
+
+            {/* Forgot Password link */}
+            <p className="text-right -mt-3">
+              <Link
+                to="/forgot-password"
+                className="text-indigo-600 text-sm font-semibold hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </p>
+
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
               disabled={loading}
               className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
             >
@@ -108,7 +110,7 @@ export default function Login() {
               Create one
             </Link>
           </p>
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );

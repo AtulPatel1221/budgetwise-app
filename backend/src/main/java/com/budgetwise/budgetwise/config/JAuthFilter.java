@@ -4,7 +4,8 @@ import com.budgetwise.budgetwise.service.CustomUserDetailsService;
 import com.budgetwise.budgetwise.service.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,8 +28,13 @@ public class JAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+        // allow preflight requests through
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String header = request.getHeader("Authorization");
         String token = null;
@@ -36,22 +42,28 @@ public class JAuthFilter extends OncePerRequestFilter {
 
         if (header != null && header.startsWith("Bearer ")) {
             token = header.substring(7);
-
-            if (jwtUtil.validateToken(token)) {
-                username = jwtUtil.extractUsername(token);
+            try {
+                // existing validateToken(token) method usage
+                if (jwtUtil.validateToken(token)) {
+                    username = jwtUtil.extractUsername(token);
+                }
+            } catch (Exception ex) {
+                // token parsing/validation failed -> keep username null (anonymous)
+                logger.debug("JWT validation failed: " + ex.getMessage());
             }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+            try {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // Build authentication only if userDetails available and token valid
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } catch (Exception ex) {
+                // if something goes wrong loading user details, log and continue without auth
+                logger.debug("Failed to load user for username from token: " + ex.getMessage());
+            }
         }
 
         filterChain.doFilter(request, response);

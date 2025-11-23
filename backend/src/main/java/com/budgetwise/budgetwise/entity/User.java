@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "user")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})   // ⭐ FIX PROXY ISSUE
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id
@@ -16,6 +16,7 @@ public class User {
     @Column(unique = true)
     private String username;
 
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -24,7 +25,6 @@ public class User {
     @Column(unique = true)
     private String email;
 
-    // ⭐ STOP infinite loop: User → Posts → User
     @JsonIgnore
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private java.util.List<Post> posts;

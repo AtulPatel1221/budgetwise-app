@@ -4,6 +4,8 @@ import com.budgetwise.budgetwise.entity.Transaction;
 import com.budgetwise.budgetwise.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -16,79 +18,194 @@ public class AiChatService {
         this.txRepo = txRepo;
     }
 
-    // MAIN CHATBOT LOGIC
     public String getResponse(String username, String userMessage) {
 
-        String msg = userMessage.toLowerCase();
+        String msg = userMessage.toLowerCase().trim();
 
-        // 1) Greeting Responses
-        if (msg.contains("hello") || msg.contains("hi")) {
-            return "Hello! I'm your BudgetWise AI Assistant 🤖. How can I help you with your finances today?";
+        // Load user transactions once
+        List<Transaction> tx = txRepo.findByUserUsername(username);
+
+        /* ==============================
+           1. GREETING
+        ===============================*/
+        if (msg.matches("hi|hello|hey|hlo|yo|hey there")) {
+            return "Hello! I'm your BudgetWise AI Assistant 🤖. How can I help you today?";
         }
 
         if (msg.contains("how are you")) {
-            return "I'm great and ready to help you plan your money better! 😊";
+            return "I'm doing great! Ready to help you manage your finances better 😊";
         }
 
-        // 2) Savings Formula Advice
+
+        /* ==============================
+           2. PREDICT NEXT MONTH EXPENSE
+        ===============================*/
+        if (msg.contains("predict") && msg.contains("expense")) {
+            double result = predictNextMonthExpense(tx);
+            return "📅 Next Month Expense Prediction:\nYour expected expense is around ₹"
+                    + String.format("%.2f", result) +
+                    " based on your past spending trend.";
+        }
+
+
+        /* ==============================
+           3. HIGHEST SPENDING THIS MONTH
+        ===============================*/
+        if (msg.contains("highest") && msg.contains("month")) {
+            return highestSpendingThisMonth(tx);
+        }
+
+        /* ==============================
+           4. HIGHEST SPENDING THIS WEEK
+        ===============================*/
+        if (msg.contains("highest") && msg.contains("week")) {
+            return highestSpendingThisWeek(tx);
+        }
+
+        /* ==============================
+           5. SAVING ADVICE
+        ===============================*/
         if (msg.contains("save") || msg.contains("saving")) {
-            return "A great way to save money is using the **50/30/20 rule**:\n" +
-                    "50% Needs 🏠\n30% Wants 🎉\n20% Savings 💰.\nTry this for 3 months and you will see the difference!";
+            return "💡 Try the 50/30/20 rule:\n50% Needs, 30% Wants, 20% Savings.\nSmall changes every month can give big results!";
         }
 
-        // 3) Spending Control Advice
-        if (msg.contains("control") || msg.contains("reduce expense")) {
-            return "To reduce expenses, track your transactions weekly, stop unnecessary subscriptions, avoid impulse buying, and set daily spending limits 👍.";
+        /* ==============================
+           6. BUDGET ADVICE
+        ===============================*/
+        if (msg.contains("budget")) {
+            return "📝 To create a budget:\n1️⃣ Track all expenses\n2️⃣ Categorize them\n3️⃣ Set category limits\n4️⃣ Review weekly.\nI can help based on your spending!";
         }
 
-        // 4) Budget Making
-        if (msg.contains("budget") || msg.contains("make budget")) {
-            return "To create a good budget:\n" +
-                    "1️⃣ List your income\n2️⃣ Track all expenses\n3️⃣ Categorize spending\n4️⃣ Set monthly limits\n5️⃣ Review weekly.\nI can help based on your data too!";
-        }
-
-        // 5) INVESTMENT Advice
+        /* ==============================
+           7. INVESTMENT ADVICE
+        ===============================*/
         if (msg.contains("invest")) {
-            return "Safe investment options:\n" +
-                    "• Mutual Funds 📈\n• SIP (Systematic Investment Plans)\n" +
-                    "• Gold Bonds 🪙\n• FD/RD for stable returns\nInvest only what you can hold long-term.";
+            return "📈 Good investment options:\n Mutual Funds SIP\n Gold Bonds\n Index Funds\n Recurring Deposits\nInvest only after building an emergency fund!";
         }
 
-        // 6) PERSONALIZED FINANCIAL ANALYSIS USING USER DATA
-        List<Transaction> tx = txRepo.findByUserUsername(username);
-
+        /* ==============================
+           8. PERSONAL ANALYSIS
+        ===============================*/
         if (msg.contains("analysis") || msg.contains("my finance") || msg.contains("my spending")) {
-            double totalExpense = tx.stream()
-                    .filter(t -> t.getType().equals("EXPENSE"))
-                    .mapToDouble(Transaction::getAmount).sum();
-
-            double totalIncome = tx.stream()
-                    .filter(t -> t.getType().equals("INCOME"))
-                    .mapToDouble(Transaction::getAmount).sum();
-
-            String topCategory = tx.stream()
-                    .filter(t -> t.getType().equals("EXPENSE"))
-                    .collect(Collectors.groupingBy(Transaction::getCategory, Collectors.summingDouble(Transaction::getAmount)))
-                    .entrySet()
-                    .stream()
-                    .max(Map.Entry.comparingByValue())
-                    .map(Map.Entry::getKey)
-                    .orElse("No expenses yet");
-
-            return "Here is your personalized financial analysis 📊:\n\n" +
-                    "💰 Total Income: ₹" + totalIncome + "\n" +
-                    "💸 Total Expense: ₹" + totalExpense + "\n" +
-                    "🔥 Highest Spending Category: " + topCategory + "\n\n" +
-                    "Tip: Try limiting your spending in " + topCategory + " to improve savings!";
+            return getPersonalAnalysis(tx);
         }
 
-        // 7) Default fallback response
-        return "I didn't fully understand that, but I can help you with:\n" +
-                "• Budget planning 📝\n" +
-                "• Saving techniques 💰\n" +
-                "• Spending control tips 📉\n" +
-                "• Investment suggestions 📊\n" +
-                "• Personalized financial analysis 🔍\n\n" +
-                "Try asking something like: *“How can I save more money?”*";
+        /* ==============================
+           9. DEFAULT RESPONSE
+        ===============================*/
+        return "I can help you with:\n" +
+                "• Predicting future expenses 🔮\n" +
+                "• Monthly & weekly spending analysis 📊\n" +
+                "• Budget planning 💰\n" +
+                "• Expense control tips 📉\n" +
+                "• Personalized spending insights 🧠\n\n" +
+                "Try asking: *“Predict my next month expense”*";
+    }
+
+
+    /* ==========================
+       HELPING FUNCTIONS
+    ==========================*/
+
+    private double predictNextMonthExpense(List<Transaction> tx) {
+        List<Transaction> expenses = tx.stream()
+                .filter(t -> t.getType().equals("EXPENSE"))
+                .toList();
+
+        if (expenses.size() < 2) return 0;
+
+        Map<YearMonth, Double> monthly = expenses.stream()
+                .collect(Collectors.groupingBy(
+                        t -> YearMonth.from(t.getDate()),
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        List<YearMonth> months = new ArrayList<>(monthly.keySet());
+        Collections.sort(months);
+
+        List<Double> x = new ArrayList<>();
+        List<Double> y = new ArrayList<>();
+
+        for (int i = 0; i < months.size(); i++) {
+            x.add((double) i);
+            y.add(monthly.get(months.get(i)));
+        }
+
+        int n = x.size();
+        double sumX = x.stream().mapToDouble(Double::doubleValue).sum();
+        double sumY = y.stream().mapToDouble(Double::doubleValue).sum();
+        double sumXY = 0, sumXX = 0;
+
+        for (int i = 0; i < n; i++) {
+            sumXY += x.get(i) * y.get(i);
+            sumXX += x.get(i) * x.get(i);
+        }
+
+        double slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        double intercept = (sumY - slope * sumX) / n;
+
+        return slope * n + intercept;
+    }
+
+
+    private String highestSpendingThisMonth(List<Transaction> tx) {
+        YearMonth now = YearMonth.now();
+
+        Map<String, Double> categories = tx.stream()
+                .filter(t -> t.getType().equals("EXPENSE"))
+                .filter(t -> YearMonth.from(t.getDate()).equals(now))
+                .collect(Collectors.groupingBy(
+                        Transaction::getCategory,
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        if (categories.isEmpty()) return "You have no expenses recorded this month 😄";
+
+        var max = categories.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .get();
+
+        return "📅 This Month's Highest Spending Category:\n" + max.getKey() +
+                " with ₹" + max.getValue() + " spent.";
+    }
+
+
+    private String highestSpendingThisWeek(List<Transaction> tx) {
+        LocalDate now = LocalDate.now();
+        LocalDate weekStart = now.minusDays(7);
+
+        Map<String, Double> categories = tx.stream()
+                .filter(t -> t.getType().equals("EXPENSE"))
+                .filter(t -> !t.getDate().isBefore(weekStart))
+                .collect(Collectors.groupingBy(
+                        Transaction::getCategory,
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        if (categories.isEmpty()) return "You have no expenses recorded this week 🙂";
+
+        var max = categories.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .get();
+
+        return "📆 This Week's Highest Spending: \nCategory " + max.getKey() +
+                " with ₹" + max.getValue() + " spent.";
+    }
+
+
+    private String getPersonalAnalysis(List<Transaction> tx) {
+        double expense = tx.stream()
+                .filter(t -> t.getType().equals("EXPENSE"))
+                .mapToDouble(Transaction::getAmount).sum();
+
+        double income = tx.stream()
+                .filter(t -> t.getType().equals("INCOME"))
+                .mapToDouble(Transaction::getAmount).sum();
+
+        return "📊 Your Finance Summary:\n\n" +
+                "💰 Total Income: ₹" + income + "\n" +
+                "💸 Total Expense: ₹" + expense + "\n" +
+                "💡 Savings: ₹" + (income - expense) + "\n\n" +
+                "Let me know if you want category-wise breakdown!";
     }
 }

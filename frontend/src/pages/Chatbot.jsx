@@ -1,112 +1,163 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import API from "../services/api";
-import { Send } from "lucide-react";
+import { Mic, Send } from "lucide-react";
 
 export default function Chatbot() {
-  const [messages, setMessages] = useState([
-    { sender: "bot", text: "Hello 👋, I'm your AI Finance Assistant. How can I help you today?" }
-  ]);
-
   const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [listening, setListening] = useState(false);
 
-  const chatEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
-  // Auto-scroll to latest message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing]);
+  // 🎤 ----------- VOICE INPUT -----------
+  const startListening = () => {
+    if (!("webkitSpeechRecognition" in window)) {
+      alert("Your browser does not support Voice Input.");
+      return;
+    }
 
+    recognitionRef.current = new window.webkitSpeechRecognition();
+    recognitionRef.current.lang = "en-IN";
+    recognitionRef.current.continuous = false;
+
+    recognitionRef.current.onstart = () => setListening(true);
+
+    recognitionRef.current.onresult = (event) => {
+      const speech = event.results[0][0].transcript;
+      setInput(speech);
+      setListening(false);
+    };
+
+    recognitionRef.current.onerror = () => setListening(false);
+    recognitionRef.current.start();
+  };
+
+  // 🔊 ----------- BOT SPEAK ON CLICK -----------
+  const speak = (text) => {
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-IN";
+    window.speechSynthesis.speak(speech);
+  };
+
+  // 📩 SEND MESSAGE
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    // Add user message to chat
-    const userMessage = { sender: "user", text: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMsg = input;
 
-    const userInput = input;
+    // Add user message
+    setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
+
     setInput("");
-    setTyping(true);
 
     try {
-      const res = await API.post("/ai/chat", { message: userInput });
+      const res = await API.post("/ai/chat", { message: userMsg });
+      const botReply = res.data.response;
 
-      setTimeout(() => {
-        const botMessage = { sender: "bot", text: res.data.response };
-        setMessages((prev) => [...prev, botMessage]);
-        setTyping(false);
-      }, 800); // typing delay
+      // Add bot message
+      setMessages((prev) => [...prev, { role: "bot", text: botReply }]);
+
+      // ❌ Removed auto-speak 
+      // speak(botReply);
 
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "❌ Error connecting to AI service." }
+        { role: "bot", text: "⚠ Something went wrong. Try again." },
       ]);
-      setTyping(false);
     }
   };
 
+  // ⭐ SMART FINANCE QUESTIONS
+  const quickQuestions = [
+    "Predict my next month expense",
+    "What is my highest spending category this month?",
+    "What is my highest spending category this week?",
+    "Give me my financial analysis",
+    "How can I save more money?",
+    "How to reduce expenses?",
+    "Help me make a budget",
+    "Give me investment advice",
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-6 text-white flex justify-center">
-      <div className="bg-white text-gray-900 w-full max-w-3xl h-[85vh] rounded-3xl shadow-2xl flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 p-6 flex justify-center items-center">
 
-        {/* Header */}
-        <div className="p-4 bg-indigo-600 rounded-t-3xl text-white text-xl font-bold flex items-center gap-2">
-          🤖 AI Finance Assistant
-        </div>
+      <div className="bg-white/90 backdrop-blur-2xl w-full max-w-3xl rounded-3xl shadow-2xl p-6 border border-purple-200">
 
-        {/* Chat Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-          {messages.map((msg, index) => (
+        <h2 className="text-3xl font-extrabold text-indigo-700 mb-5 text-center tracking-wide">
+          🤖 BudgetWise AI Assistant
+        </h2>
+
+        {/* MESSAGE AREA */}
+        <div className="h-96 overflow-y-auto p-4 bg-gray-100 rounded-2xl shadow-inner mb-5 border border-gray-200">
+          {messages.map((msg, i) => (
             <div
-              key={index}
-              className={`flex ${
-                msg.sender === "user" ? "justify-end" : "justify-start"
+              key={i}
+              className={`p-3 my-2 rounded-xl w-fit max-w-xs text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-indigo-600 text-white ml-auto shadow-md"
+                  : "bg-white text-gray-900 shadow"
               }`}
             >
-              <div
-                className={`px-4 py-3 rounded-2xl text-sm max-w-[75%] shadow 
-                  ${
-                    msg.sender === "user"
-                      ? "bg-indigo-600 text-white rounded-br-none"
-                      : "bg-gray-200 text-gray-800 rounded-bl-none"
-                  }
-                `}
-              >
-                {msg.text}
-              </div>
+              {msg.text}
+
+              {/* 🔊 BOT SPEAK BUTTON */}
+              {msg.role === "bot" && (
+                <button
+                  onClick={() => speak(msg.text)}
+                  className="ml-2 text-indigo-600 text-xs underline hover:text-indigo-800"
+                >
+                  🔊 Speak
+                </button>
+              )}
             </div>
           ))}
-
-          {/* Typing Indicator */}
-          {typing && (
-            <div className="flex items-center gap-2 text-gray-600">
-              <div className="animate-pulse">🤖 AI is typing...</div>
-            </div>
-          )}
-
-          <div ref={chatEndRef}></div>
         </div>
 
-        {/* Input Box */}
-        <div className="p-4 bg-white rounded-b-3xl border-t flex items-center gap-3">
+        {/* QUICK REPLY BUTTONS */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {quickQuestions.map((q, i) => (
+            <button
+              key={i}
+              className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium hover:bg-indigo-200 transition cursor-pointer"
+              onClick={() => setInput(q)}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        {/* INPUT AREA */}
+        <div className="flex items-center gap-3">
           <input
             type="text"
-            className="flex-1 border px-4 py-2 rounded-full outline-none bg-gray-100"
-            placeholder="Ask something… (e.g., How can I save money?)"
+            className="flex-1 border border-gray-300 bg-white rounded-full px-4 py-2 shadow focus:ring-2 focus:ring-indigo-400"
+            placeholder="Ask anything..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
 
+          {/* Voice Button */}
+          <button
+            onClick={startListening}
+            className={`p-3 rounded-full ${
+              listening ? "bg-red-500" : "bg-indigo-600"
+            } text-white hover:bg-indigo-700 transition`}
+          >
+            <Mic size={20} />
+          </button>
+
+          {/* Send Button */}
           <button
             onClick={sendMessage}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow"
+            className="p-3 rounded-full bg-green-600 text-white hover:bg-green-700 transition"
           >
             <Send size={20} />
           </button>
         </div>
+
       </div>
     </div>
   );

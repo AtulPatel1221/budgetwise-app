@@ -44,14 +44,16 @@ export default function Budgets() {
     fetchBudgets();
   }, []);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       await API.post("/budgets", form);
-      alert(isEditing ? "Budget updated successfully!" : "Budget added successfully!");
+      alert(isEditing ? "Budget updated successfully!" : "Budget added!");
       resetForm();
       fetchBudgets();
     } catch (err) {
@@ -65,6 +67,7 @@ export default function Budgets() {
   const handleEdit = (b) => {
     setForm(b);
     setIsEditing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
@@ -85,23 +88,29 @@ export default function Budgets() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 p-10 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 p-8">
       <div className="max-w-6xl mx-auto bg-white text-gray-900 rounded-3xl shadow-2xl p-10">
-        <h1 className="text-4xl font-extrabold text-center mb-10 text-indigo-700">
-          💰 Monthly Budgets
+
+        {/* Title */}
+        <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 text-indigo-700 tracking-wide">
+          💰 Monthly Budget Manager
         </h1>
 
-        {/* Add/Edit Form */}
-        <div className="mb-10 bg-gray-50 rounded-2xl p-6 shadow-inner">
+        {/* Form Section */}
+        <div className="mb-12 bg-gray-50 rounded-2xl p-8 shadow-inner">
+          <h2 className="text-2xl font-bold text-indigo-700 mb-6">
+            {isEditing ? "✏️ Edit Budget" : "➕ Add New Budget"}
+          </h2>
+
           <form
             onSubmit={handleSubmit}
-            className="grid grid-cols-1 md:grid-cols-5 gap-4"
+            className="grid grid-cols-1 md:grid-cols-5 gap-6"
           >
             <select
               name="month"
               value={form.month}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-xl px-3 py-3 bg-white shadow-sm focus:ring-2 focus:ring-indigo-400"
               required
             >
               <option value="">Select Month</option>
@@ -115,14 +124,14 @@ export default function Budgets() {
               type="number"
               value={form.year}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-xl px-3 py-3 bg-white shadow-sm focus:ring-2 focus:ring-indigo-400"
             />
 
             <select
               name="category"
               value={form.category}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-xl px-3 py-3 bg-white shadow-sm focus:ring-2 focus:ring-indigo-400"
             >
               {categories.map((c, i) => (
                 <option key={i} value={c}>{c}</option>
@@ -132,17 +141,17 @@ export default function Budgets() {
             <input
               name="limitAmount"
               type="number"
-              placeholder="Budget Limit"
+              placeholder="Budget Limit (₹)"
               value={form.limitAmount}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-xl px-3 py-3 bg-white shadow-sm focus:ring-2 focus:ring-indigo-400"
               required
             />
 
             <button
               className={`${
                 isEditing ? "bg-yellow-500" : "bg-indigo-600"
-              } text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition`}
+              } text-white px-5 py-3 rounded-xl font-semibold shadow-md hover:opacity-90 transition`}
               disabled={loading}
             >
               {isEditing ? "Update" : "Add"}
@@ -151,10 +160,11 @@ export default function Budgets() {
         </div>
 
         {/* Budget Cards */}
+        <h2 className="text-2xl font-bold text-indigo-700 mb-5">📊 Your Budgets</h2>
         {budgets.length === 0 ? (
           <p className="text-center text-gray-600">No budgets added yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {budgets.map((b) => {
               const progress = Math.min((b.spentAmount / b.limitAmount) * 100, 100);
               const remaining = b.limitAmount - (b.spentAmount || 0);
@@ -162,22 +172,28 @@ export default function Budgets() {
               return (
                 <div
                   key={b.id}
-                  className="p-6 rounded-2xl shadow-md bg-gradient-to-br from-indigo-50 to-purple-100 hover:shadow-xl transition-all"
+                  className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-indigo-50 to-purple-100 border border-indigo-200 hover:shadow-2xl hover:scale-[1.02] transition-all"
                 >
-                  <h3 className="text-xl font-bold text-indigo-700 mb-2">
-                    {b.category}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    {b.month} {b.year}
-                  </p>
-                  <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-indigo-700">
+                      {b.category}
+                    </h3>
+                    <span className="text-sm bg-indigo-600 text-white px-3 py-1 rounded-full">
+                      {b.month} {b.year}
+                    </span>
+                  </div>
+
+                  {/* Values */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm font-medium mb-2">
                       <span>Spent: ₹{b.spentAmount || 0}</span>
                       <span>Limit: ₹{b.limitAmount}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div
-                        className={`h-2.5 rounded-full ${
+                        className={`h-3 rounded-full transition-all duration-500 ${
                           progress > 90
                             ? "bg-red-500"
                             : progress > 60
@@ -187,11 +203,14 @@ export default function Budgets() {
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
-                    <p className="text-sm mt-2 text-gray-600">
+
+                    <p className="text-sm mt-3 text-gray-700 font-semibold">
                       Remaining: ₹{remaining.toFixed(2)}
                     </p>
                   </div>
-                  <div className="flex justify-end space-x-3 mt-4">
+
+                  {/* Buttons */}
+                  <div className="flex justify-end space-x-4 mt-5">
                     <button
                       onClick={() => handleEdit(b)}
                       className="text-blue-600 hover:text-blue-800 font-semibold"

@@ -1,6 +1,8 @@
+// src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
+
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -8,26 +10,45 @@ import Transactions from "./pages/Transactions";
 import Profile from "./pages/Profile";
 import Budgets from "./pages/Budgets.jsx";
 import Goals from "./pages/Goals.jsx";
-import ProtectedRoute from "./routes/ProtectedRoute";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Forum from "./pages/Forum";
 import Chatbot from "./pages/Chatbot";
 
+import AdminPage from "./pages/AdminPage";
+import ProtectedRoute, { AdminRoute } from "./routes/ProtectedRoute";
+
+// 🔹 Forgot & Reset Password pages
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+
       <Routes>
-        {/* Default route */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Public routes */}
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Protected routes */}
+        {/* 🔹 Forgot / Reset Password */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* Admin only */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          }
+        />
+
+        {/* Protected user routes */}
         <Route
           path="/dashboard"
           element={
@@ -36,7 +57,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/transactions"
           element={
@@ -45,7 +65,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/budgets"
           element={
@@ -54,7 +73,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/goals"
           element={
@@ -63,15 +81,38 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
-  path="/reports"
-  element={
-    <ProtectedRoute>
-      <Reports />
-    </ProtectedRoute>
-  }
-/>
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <Analytics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/forum"
+          element={
+            <ProtectedRoute>
+              <Forum />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chatbot"
+          element={
+            <ProtectedRoute>
+              <Chatbot />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile"
           element={
@@ -80,33 +121,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        <Route
-  path="/chatbot"
-  element={
-    <ProtectedRoute>
-      <Chatbot />
-    </ProtectedRoute>
-  }
-/>
-
-        <Route
-  path="/forum"
-  element={
-    <ProtectedRoute>
-      <Forum />
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/analytics"
-  element={
-    <ProtectedRoute>
-      <Analytics />
-    </ProtectedRoute>
-  }
-/>
       </Routes>
     </div>
   );

@@ -4,8 +4,11 @@ import com.budgetwise.budgetwise.entity.*;
 import com.budgetwise.budgetwise.repository.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.security.Principal;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/forum")
@@ -31,10 +34,13 @@ public class ForumController {
         return ResponseEntity.ok(post);
     }
 
-    // 📜 Get All Posts
+    // ✅ FIXED: SAFE + NO LAZY CRASH
     @GetMapping("/posts")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllPosts() {
-        return ResponseEntity.ok(postRepo.findAllByOrderByCreatedAtDesc());
+        List<Post> posts = postRepo.findAllWithCommentsAndSorted();
+        List<PostDTO> dtoList = posts.stream().map(PostDTO::from).toList();
+        return ResponseEntity.ok(dtoList);
     }
 
     // 💬 Add Comment
@@ -55,5 +61,31 @@ public class ForumController {
         post.setLikesCount(post.getLikesCount() + 1);
         postRepo.save(post);
         return ResponseEntity.ok(Map.of("likes", post.getLikesCount()));
+    }
+
+    // ✅ SAFE DTO
+    static class PostDTO {
+        public Long id;
+        public String title;
+        public String content;
+        public String createdAt;
+        public int likesCount;
+        public String username;
+
+        static PostDTO from(Post p) {
+            PostDTO dto = new PostDTO();
+            dto.id = p.getId();
+            dto.title = p.getTitle();
+            dto.content = p.getContent();
+            dto.createdAt = p.getCreatedAt().toString();
+            dto.likesCount = p.getLikesCount();
+
+            // ✅ Critical FIX: NO LAZY FAILURE
+            dto.username = (p.getUser() != null && p.getUser().getUsername() != null)
+                    ? p.getUser().getUsername()
+                    : "Unknown";
+
+            return dto;
+        }
     }
 }

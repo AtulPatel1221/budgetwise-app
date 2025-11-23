@@ -51,10 +51,12 @@ export default function Dashboard() {
     try {
       const catRes = await API.get("/analytics/category-summary");
       const monRes = await API.get("/analytics/monthly-summary");
+
       const formattedCat = Object.entries(catRes.data).map(([name, value]) => ({
         name,
         value
       }));
+
       setCategoryData(formattedCat);
       setMonthlyData(monRes.data);
     } catch (err) {
@@ -79,7 +81,7 @@ export default function Dashboard() {
     fetchUser();
     fetchTransactions();
     fetchAnalytics();
-    fetchAiPrediction(); // ⭐ Important
+    fetchAiPrediction();
   }, []);
 
   // ==================== Calculations ====================
@@ -98,13 +100,51 @@ export default function Dashboard() {
     .slice(0, 5);
 
   const tips = [
-    "Small savings every day lead to big achievements!",
+    "Small savings everyday lead to big achievements!",
     "A budget tells your money where to go instead of wondering where it went.",
     "Save before you spend — future you will thank you!",
     "Track your habits, not just your expenses.",
     "Every rupee saved is a step toward freedom."
   ];
   const tip = tips[Math.floor(Math.random() * tips.length)];
+
+  // ====================== EXTRA AI LOGIC ==========================
+  const highestCategory = () => {
+    if (!transactions.length) return "N/A";
+
+    const expenseTx = transactions.filter(t => t.type === "EXPENSE");
+
+    if (!expenseTx.length) return "N/A";
+
+    const map = {};
+
+    expenseTx.forEach(t => {
+      map[t.category] = (map[t.category] || 0) + t.amount;
+    });
+
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return sorted[0][0] + " (₹" + sorted[0][1] + ")";
+  };
+
+  const trendMessage = () => {
+    if (!monthlyData || monthlyData.length < 2) return "Not enough data to check trends.";
+
+    const last = monthlyData[monthlyData.length - 1];
+    const prev = monthlyData[monthlyData.length - 2];
+
+    if (last.expense > prev.expense)
+      return "Your expenses increased compared to last month.";
+    if (last.expense < prev.expense)
+      return "Great! Your expenses have decreased this month.";
+
+    return "Your monthly spending is stable.";
+  };
+
+  const savingsTip = () => {
+    return "Try reducing 10% from your top 2 categories to save more next month.";
+  };
+
+  // ==================================================================
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-10 text-white">
@@ -133,7 +173,7 @@ export default function Dashboard() {
           <SummaryCard title="Net Balance" amount={balance} type="balance" />
         </div>
 
-        {/* ⭐ AI PREDICTION CARD */}
+        {/* ⭐ UPDATED AI PREDICTION CARD */}
         <div className="bg-white text-gray-900 p-7 rounded-2xl shadow-2xl border border-purple-300 mb-12">
           <h2 className="text-3xl font-extrabold text-purple-700 mb-4 flex items-center gap-2">
             🤖 AI Next-Month Expense Prediction
@@ -152,13 +192,26 @@ export default function Dashboard() {
                 </span>
               </p>
 
-              <p className="text-gray-600 mt-2">
-                Based on your historical expense trends.
-              </p>
+              <div className="mt-5 space-y-2">
+                <p className="text-gray-800 font-semibold">
+                  📌 Highest Spending Category:  
+                  <span className="text-purple-700 ml-1">{highestCategory()}</span>
+                </p>
+
+                <p className="text-gray-800 font-semibold">
+                  📈 Monthly Trend:  
+                  <span className="text-indigo-700 ml-1">{trendMessage()}</span>
+                </p>
+
+                <p className="text-gray-800 font-semibold">
+                  💡 AI Suggestion:  
+                  <span className="text-green-700 ml-1">{savingsTip()}</span>
+                </p>
+              </div>
 
               <Link
                 to="/analytics"
-                className="mt-4 inline-block bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-full shadow-lg transition"
+                className="mt-5 inline-block bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-full shadow-lg transition"
               >
                 View Full Analytics →
               </Link>
@@ -349,4 +402,5 @@ function RecentTransactions({ recent }) {
       )}
     </div>
   );
+
 }
