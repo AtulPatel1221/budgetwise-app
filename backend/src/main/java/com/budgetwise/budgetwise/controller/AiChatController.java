@@ -20,9 +20,7 @@ public class AiChatController {
     @PostMapping
     public Map<String, String> chat(@RequestBody Map<String, String> body, Principal principal) {
         String userMsg = body.get("message");
-
-        String reply = aiService.getResponse(principal.getName(), userMsg);
-
-        return Map.of("response", reply);
+        return aiService.getResponse(principal.getName(), userMsg);
     }
+
 }

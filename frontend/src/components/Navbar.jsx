@@ -1,13 +1,27 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, UserCircle } from "lucide-react";
 
 export default function Navbar() {
   const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role"); 
+  const role = localStorage.getItem("role");
   const navigate = useNavigate();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -17,91 +31,109 @@ export default function Navbar() {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
+  const navLinkClass = ({ isActive }) =>
+    `transition-all text-[15px] font-medium hover:text-yellow-300 ${
+      isActive ? "text-yellow-300" : "text-white"
+    }`;
+
   return (
     <motion.nav
-      className="backdrop-blur-md bg-gradient-to-r from-indigo-800 via-purple-700 to-pink-600/90 
-                 shadow-lg sticky top-0 z-50"
+      className="backdrop-blur-xl bg-gradient-to-r from-indigo-900/90 via-purple-800/90 to-pink-700/90 shadow-xl sticky top-0 z-50"
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.55, ease: "easeOut" }}
     >
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-8 py-3 text-white">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
 
         {/* Brand */}
         <Link
           to="/"
-          className="flex items-center gap-2 text-2xl font-extrabold tracking-wide hover:scale-105 transition-transform"
+          className="flex items-center gap-2 text-2xl font-extrabold tracking-wide hover:scale-105 transition"
         >
           <span className="text-3xl">💰</span>
-          <span className="bg-gradient-to-r from-yellow-200 to-yellow-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-yellow-200 to-yellow-400 bg-clip-text text-transparent">
             BudgetWise
           </span>
+          <Sparkles size={16} className="text-yellow-300" />
         </Link>
 
-        {/* Mobile Menu Button */}
-        <button
-          onClick={toggleMenu}
-          className="md:hidden text-white hover:scale-110 transition"
-        >
-          {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+        {/* Mobile Toggle */}
+        <button onClick={toggleMenu} className="md:hidden text-white">
+          {isMenuOpen ? <X size={26} /> : <Menu size={26} />}
         </button>
 
-        {/* Navigation */}
-        <div
-          className={`${
-            isMenuOpen
-              ? "flex flex-col absolute top-20 left-0 w-full bg-indigo-800/95 py-5 space-y-4 md:hidden"
-              : "hidden md:flex"
-          } md:flex md:items-center md:space-x-8 text-lg font-medium`}
-        >
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-6 text-[15px]">
           {!token ? (
             <>
-              <Link className="hover:text-yellow-300" to="/signup">Signup</Link>
-              <Link className="hover:text-yellow-300" to="/login">Login</Link>
+              <NavLink className={navLinkClass} to="/signup">Signup</NavLink>
+              <NavLink className={navLinkClass} to="/login">Login</NavLink>
             </>
           ) : (
             <>
-              {/* ----------------------- USER NAVIGATION ----------------------- */}
               {role !== "ADMIN" && (
                 <>
-                  <Link to="/dashboard" className="hover:text-yellow-300">Dashboard</Link>
-                  <Link to="/transactions" className="hover:text-yellow-300">Transactions</Link>
-                  <Link to="/budgets" className="hover:text-yellow-300">Budgets</Link>
-                  <Link to="/goals" className="hover:text-yellow-300">Goals</Link>
-                  <Link to="/forum" className="hover:text-yellow-300">Forum</Link>
-                  <Link to="/reports" className="hover:text-yellow-300">Reports</Link>
-                  <Link to="/profile" className="hover:text-yellow-300">Profile</Link>
+                  <NavLink className={navLinkClass} to="/dashboard">Dashboard</NavLink>
+                  <NavLink className={navLinkClass} to="/transactions">Transactions</NavLink>
 
-                  <Link
+                  {/* ⭐ Analytics placed after Transactions */}
+                  <NavLink className={navLinkClass} to="/analytics">Analytics</NavLink>
+
+                  <NavLink className={navLinkClass} to="/budgets">Budgets</NavLink>
+                  <NavLink className={navLinkClass} to="/goals">Goals</NavLink>
+                  <NavLink className={navLinkClass} to="/forum">Forum</NavLink>
+                  <NavLink className={navLinkClass} to="/reports">Reports</NavLink>
+
+                  <NavLink
                     to="/chatbot"
-                    className="bg-white/20 px-4 py-1.5 rounded-full shadow-sm hover:bg-white/30 hover:scale-105 transition-all"
+                    className="bg-white/20 px-4 py-1.5 rounded-full text-[14.5px] font-medium hover:bg-white/30"
                   >
-                    AI Help
-                  </Link>
+                    🤖 AI Assistant
+                  </NavLink>
                 </>
               )}
 
-              {/* ----------------------- ADMIN NAVIGATION ----------------------- */}
+              {/* ⭐ ADMIN PANEL BUTTON */}
               {role === "ADMIN" && (
-                <>
-                  <Link
-                    to="/admin"
-                    className="bg-yellow-400/80 px-5 py-2 rounded-full text-gray-900 font-semibold shadow-md hover:bg-yellow-400 hover:scale-105 transition"
-                  >
-                    Admin Panel
-                  </Link>
-
-                  <Link to="/profile" className="hover:text-yellow-300">Profile</Link>
-                </>
+                <NavLink
+                  to="/admin"
+                  className="bg-yellow-400/90 px-4 py-1.5 rounded-full text-gray-900 font-semibold shadow-md hover:bg-yellow-300 hover:scale-105 transition"
+                >
+                  Admin Panel
+                </NavLink>
               )}
 
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="bg-red-500/80 hover:bg-red-600 px-5 py-2 rounded-full shadow-md font-semibold transition-all"
-              >
-                Logout
-              </button>
+              {/* Account Dropdown */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-2 bg-white/20 px-4 py-1.5 rounded-full text-[14.5px] hover:bg-white/30"
+                >
+                  <UserCircle size={18} />
+                  My Account
+                </button>
+
+                {showProfileMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute right-0 mt-2 w-40 bg-white text-gray-700 rounded-lg shadow-lg text-[15px]"
+                  >
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 hover:bg-gray-100"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 w-full px-4 py-2 hover:bg-red-100 text-red-600"
+                    >
+                      <LogOut size={16} /> Logout
+                    </button>
+                  </motion.div>
+                )}
+              </div>
             </>
           )}
         </div>

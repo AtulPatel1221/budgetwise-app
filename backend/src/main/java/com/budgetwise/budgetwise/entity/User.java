@@ -16,7 +16,7 @@ public class User {
     @Column(unique = true)
     private String username;
 
-    @JsonIgnore
+  //jason ignore laga hua tha 
     private String password;
 
     @Enumerated(EnumType.STRING)

@@ -6,10 +6,9 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [listening, setListening] = useState(false);
-
   const recognitionRef = useRef(null);
 
-  // 🎤 ----------- VOICE INPUT -----------
+  // 🎤 Voice Input
   const startListening = () => {
     if (!("webkitSpeechRecognition" in window)) {
       alert("Your browser does not support Voice Input.");
@@ -32,33 +31,63 @@ export default function Chatbot() {
     recognitionRef.current.start();
   };
 
-  // 🔊 ----------- BOT SPEAK ON CLICK -----------
+  // 🔊 Text to Speech
   const speak = (text) => {
     const speech = new SpeechSynthesisUtterance(text);
     speech.lang = "en-IN";
     window.speechSynthesis.speak(speech);
   };
 
-  // 📩 SEND MESSAGE
+  // ⌨ Typing Animation (ChatGPT style)
+  const typeText = (text, callback) => {
+    let index = 0;
+
+    const interval = setInterval(() => {
+      callback(text.slice(0, index));
+      index++;
+
+      if (index > text.length) {
+        clearInterval(interval);
+      }
+    }, 20);
+  };
+
+  // 📩 Send Message
   const sendMessage = async () => {
     if (!input.trim()) return;
 
     const userMsg = input;
 
-    // Add user message
     setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
-
     setInput("");
 
     try {
       const res = await API.post("/ai/chat", { message: userMsg });
+
       const botReply = res.data.response;
+      const source = res.data.source;
 
-      // Add bot message
-      setMessages((prev) => [...prev, { role: "bot", text: botReply }]);
+      let prefix = " BudgetWise AI: ";
 
-      // ❌ Removed auto-speak 
-      // speak(botReply);
+      if (source === "OPENROUTER") {
+        prefix = "🤖 OpenRouter AI: ";
+      } else if (source === "HUGGING_FACE") {
+        prefix = "🤖 HuggingFace AI: ";
+      }
+
+      const finalText = prefix + botReply;
+
+      // Add empty message first for typing effect
+      setMessages((prev) => [...prev, { role: "bot", text: "" }]);
+
+      // Typing animation: update last bot message slowly
+      typeText(finalText, (typedText) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].text = typedText;
+          return updated;
+        });
+      });
 
     } catch (err) {
       console.error(err);
@@ -69,7 +98,7 @@ export default function Chatbot() {
     }
   };
 
-  // ⭐ SMART FINANCE QUESTIONS
+  // ⭐ Quick Buttons
   const quickQuestions = [
     "Predict my next month expense",
     "What is my highest spending category this month?",
@@ -83,14 +112,13 @@ export default function Chatbot() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 p-6 flex justify-center items-center">
-
       <div className="bg-white/90 backdrop-blur-2xl w-full max-w-3xl rounded-3xl shadow-2xl p-6 border border-purple-200">
 
         <h2 className="text-3xl font-extrabold text-indigo-700 mb-5 text-center tracking-wide">
-          🤖 BudgetWise AI Assistant
+          🤖 Smart AI Assistant
         </h2>
 
-        {/* MESSAGE AREA */}
+        {/* CHAT AREA */}
         <div className="h-96 overflow-y-auto p-4 bg-gray-100 rounded-2xl shadow-inner mb-5 border border-gray-200">
           {messages.map((msg, i) => (
             <div
@@ -103,7 +131,6 @@ export default function Chatbot() {
             >
               {msg.text}
 
-              {/* 🔊 BOT SPEAK BUTTON */}
               {msg.role === "bot" && (
                 <button
                   onClick={() => speak(msg.text)}
@@ -116,7 +143,7 @@ export default function Chatbot() {
           ))}
         </div>
 
-        {/* QUICK REPLY BUTTONS */}
+        {/* QUICK BUTTONS */}
         <div className="flex flex-wrap gap-2 mb-4">
           {quickQuestions.map((q, i) => (
             <button
@@ -139,7 +166,6 @@ export default function Chatbot() {
             onChange={(e) => setInput(e.target.value)}
           />
 
-          {/* Voice Button */}
           <button
             onClick={startListening}
             className={`p-3 rounded-full ${
@@ -149,7 +175,6 @@ export default function Chatbot() {
             <Mic size={20} />
           </button>
 
-          {/* Send Button */}
           <button
             onClick={sendMessage}
             className="p-3 rounded-full bg-green-600 text-white hover:bg-green-700 transition"

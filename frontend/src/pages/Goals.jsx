@@ -10,8 +10,12 @@ export default function Goals() {
     savedAmount: "",
     deadline: "",
   });
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // ⭐ Validation error state
+  const [goalError, setGoalError] = useState("");
 
   const fetchGoals = async () => {
     try {
@@ -27,11 +31,30 @@ export default function Goals() {
     fetchGoals();
   }, []);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // ⭐ ONLY validation added
+    if (name === "goalName") {
+      const regex = /^[A-Za-z ]+$/;
+      if (!regex.test(value)) {
+        setGoalError("Only letters and spaces allowed");
+      } else {
+        setGoalError("");
+      }
+    }
+
+    setForm({ ...form, [name]: value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (goalError) {
+      alert("Fix the goal name before submitting.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -49,6 +72,7 @@ export default function Goals() {
 
   const handleEdit = (goal) => {
     setForm(goal);
+    setGoalError("");
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -67,6 +91,7 @@ export default function Goals() {
       savedAmount: "",
       deadline: "",
     });
+    setGoalError("");
     setIsEditing(false);
   };
 
@@ -89,47 +114,72 @@ export default function Goals() {
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-5 gap-6"
           >
-            <input
-              name="goalName"
-              placeholder="Goal Name"
-              value={form.goalName}
-              onChange={handleChange}
-              className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
-              required
-            />
+            {/* ⭐ Goal Name with alignment fix */}
+            <div className="flex flex-col">
+              <input
+                name="goalName"
+                placeholder="Goal Name"
+                value={form.goalName}
+                onChange={handleChange}
+                className={`border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 ${
+                  goalError ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                }`}
+                required
+              />
 
-            <input
-              name="targetAmount"
-              type="number"
-              placeholder="Target (₹)"
-              value={form.targetAmount}
-              onChange={handleChange}
-              className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
-              required
-            />
+              {/* Fix alignment by adding fixed height below input */}
+              <div className="h-5">
+                {goalError && (
+                  <p className="text-red-500 text-xs mt-1">{goalError}</p>
+                )}
+              </div>
+            </div>
 
-            <input
-              name="savedAmount"
-              type="number"
-              placeholder="Saved (₹)"
-              value={form.savedAmount}
-              onChange={handleChange}
-              className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
-            />
+            {/* Target Amount */}
+            <div className="flex flex-col">
+              <input
+                name="targetAmount"
+                type="number"
+                placeholder="Target (₹)"
+                value={form.targetAmount}
+                onChange={handleChange}
+                className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
+                required
+              />
+              <div className="h-5"></div>
+            </div>
 
-            <input
-              name="deadline"
-              type="date"
-              value={form.deadline}
-              onChange={handleChange}
-              className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
-            />
+            {/* Saved Amount */}
+            <div className="flex flex-col">
+              <input
+                name="savedAmount"
+                type="number"
+                placeholder="Saved (₹)"
+                value={form.savedAmount}
+                onChange={handleChange}
+                className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
+              />
+              <div className="h-5"></div>
+            </div>
 
+            {/* Deadline */}
+            <div className="flex flex-col">
+              <input
+                name="deadline"
+                type="date"
+                value={form.deadline}
+                onChange={handleChange}
+                className="border rounded-xl px-4 py-3 shadow-sm bg-white focus:ring-2 focus:ring-indigo-400"
+              />
+              <div className="h-5"></div>
+            </div>
+
+            {/* Submit Button */}
             <button
               className={`${
                 isEditing ? "bg-yellow-500" : "bg-indigo-600"
               } text-white px-5 py-3 rounded-xl font-semibold shadow-md hover:opacity-90 transition`}
-              disabled={loading}
+              disabled={loading || goalError}
             >
               {isEditing ? "Update" : "Add"}
             </button>

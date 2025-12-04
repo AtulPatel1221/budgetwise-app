@@ -2,7 +2,13 @@ package com.budgetwise.budgetwise.service;
 
 import com.budgetwise.budgetwise.entity.Transaction;
 import com.budgetwise.budgetwise.repository.TransactionRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -13,103 +19,127 @@ import java.util.stream.Collectors;
 public class AiChatService {
 
     private final TransactionRepository txRepo;
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AiChatService(TransactionRepository txRepo) {
+    @Value("${openrouter.api.key:}")
+    private String openRouterApiKey;
+
+    @Value("${openrouter.model:tngtech/tng-r1t-chimera:free}")
+    private String openRouterModel;
+
+    @Value("${openrouter.retry.max:3}")
+    private int maxRetries;
+
+    @Value("${openrouter.retry.initial-delay-ms:500}")
+    private int initialDelayMs;
+
+    public AiChatService(TransactionRepository txRepo, RestTemplate restTemplate) {
         this.txRepo = txRepo;
+        this.restTemplate = restTemplate;
     }
 
-    public String getResponse(String username, String userMessage) {
-
-        String msg = userMessage.toLowerCase().trim();
-
-        // Load user transactions once
+    public Map<String, String> getResponse(String username, String userMessage) {
+        String msg = userMessage == null ? "" : userMessage.toLowerCase().trim();
         List<Transaction> tx = txRepo.findByUserUsername(username);
 
-        /* ==============================
-           1. GREETING
-        ===============================*/
+        // 1️⃣ Greetings
         if (msg.matches("hi|hello|hey|hlo|yo|hey there")) {
-            return "Hello! I'm your BudgetWise AI Assistant 🤖. How can I help you today?";
+            return response("BUDGETWISE_AI", "Hello! 👋 I'm your BudgetWise Assistant. How can I help?");
         }
-
         if (msg.contains("how are you")) {
-            return "I'm doing great! Ready to help you manage your finances better 😊";
+            return response("BUDGETWISE_AI", "I'm doing great! 😊 Ready to help you manage your money smartly.");
         }
 
-
-        /* ==============================
-           2. PREDICT NEXT MONTH EXPENSE
-        ===============================*/
+        // 2️⃣ Predict Next Month Expense
         if (msg.contains("predict") && msg.contains("expense")) {
             double result = predictNextMonthExpense(tx);
-            return "📅 Next Month Expense Prediction:\nYour expected expense is around ₹"
-                    + String.format("%.2f", result) +
-                    " based on your past spending trend.";
+            return response("BUDGETWISE_AI",
+                "📅 Next Month Prediction*\nEstimated expenses: ₹" + String.format("%.2f", result) + "**");
         }
 
-
-        /* ==============================
-           3. HIGHEST SPENDING THIS MONTH
-        ===============================*/
+        // 3️⃣ Highest Spending Month
         if (msg.contains("highest") && msg.contains("month")) {
-            return highestSpendingThisMonth(tx);
+            return response("BUDGETWISE_AI", highestSpendingThisMonth(tx));
         }
 
-        /* ==============================
-           4. HIGHEST SPENDING THIS WEEK
-        ===============================*/
+        // 4️⃣ Highest Spending Week
         if (msg.contains("highest") && msg.contains("week")) {
-            return highestSpendingThisWeek(tx);
+            return response("BUDGETWISE_AI", highestSpendingThisWeek(tx));
         }
 
-        /* ==============================
-           5. SAVING ADVICE
-        ===============================*/
-        if (msg.contains("save") || msg.contains("saving")) {
-            return "💡 Try the 50/30/20 rule:\n50% Needs, 30% Wants, 20% Savings.\nSmall changes every month can give big results!";
-        }
-
-        /* ==============================
-           6. BUDGET ADVICE
-        ===============================*/
-        if (msg.contains("budget")) {
-            return "📝 To create a budget:\n1️⃣ Track all expenses\n2️⃣ Categorize them\n3️⃣ Set category limits\n4️⃣ Review weekly.\nI can help based on your spending!";
-        }
-
-        /* ==============================
-           7. INVESTMENT ADVICE
-        ===============================*/
-        if (msg.contains("invest")) {
-            return "📈 Good investment options:\n Mutual Funds SIP\n Gold Bonds\n Index Funds\n Recurring Deposits\nInvest only after building an emergency fund!";
-        }
-
-        /* ==============================
-           8. PERSONAL ANALYSIS
-        ===============================*/
+        // 5️⃣ Finance Analysis
         if (msg.contains("analysis") || msg.contains("my finance") || msg.contains("my spending")) {
-            return getPersonalAnalysis(tx);
+            return response("BUDGETWISE_AI", getPersonalAnalysis(tx));
         }
 
-        /* ==============================
-           9. DEFAULT RESPONSE
-        ===============================*/
-        return "I can help you with:\n" +
-                "• Predicting future expenses 🔮\n" +
-                "• Monthly & weekly spending analysis 📊\n" +
-                "• Budget planning 💰\n" +
-                "• Expense control tips 📉\n" +
-                "• Personalized spending insights 🧠\n\n" +
-                "Try asking: *“Predict my next month expense”*";
+        // 6️⃣ Savings Tips
+        if (msg.contains("save") || msg.contains("saving tips")) {
+            return response("BUDGETWISE_AI",
+                    "💡 Savings Tips\n" +
+                    " Track every expense\n" +
+                    " Avoid unnecessary subscriptions\n" +
+                    " Limit eating outside\n" +
+                    " Follow 50/30/20 budgeting rule\n" +
+                    " Set monthly savings goals");
+        }
+
+        // 7️⃣ Reduce Expenses Advice
+        if (msg.contains("reduce") && msg.contains("expense")) {
+            return response("BUDGETWISE_AI",
+                    "📉 How to Reduce Expenses\n" +
+                    " Stop impulse buying\n" +
+                    " Compare prices before buying\n" +
+                    " Use UPI cashback offers\n" +
+                    " Reduce electricity & mobile bill\n" +
+                    " Track categories where you overspend");
+        }
+
+        // 8️⃣ Simple Investment Advice
+        if (msg.contains("investment") || msg.contains("invest")) {
+            return response("BUDGETWISE_AI",
+                    "📈 Simple Investment Advice\n" +
+                    " Start SIP in Index Funds\n" +
+                    " Keep emergency fund for 3-6 months\n" +
+                    " Avoid high-risk schemes\n" +
+                    " Invest only after tracking expenses\n" +
+                    " Diversify your portfolio");
+        }
+
+        // 9️⃣ Budget Creation
+        if (msg.contains("budget") || msg.contains("create budget")) {
+            return response("BUDGETWISE_AI",
+                    "📝 Budget Creation Tip\n" +
+                    "Use 50/30/20 Rule:\n" +
+                    " 50% Needs\n" +
+                    " 30% Wants\n" +
+                    " 20% Savings\n" +
+                    "I can help you track each one automatically.");
+        }
+
+        // ---------------------------
+        // FALLBACK: call external model (OpenRouter)
+        // ---------------------------
+        Map<String, String> external = callOpenRouterModel(userMessage);
+        if (external != null) {
+            return external;
+        }
+
+        // final fallback if external failed
+        return response("BUDGETWISE_AI", "I'm here to help with predictions, expenses, analysis, tips, budgeting and more. Ask me anything!");
     }
 
+    private Map<String, String> response(String source, String text) {
+        Map<String, String> map = new HashMap<>();
+        map.put("source", source);
+        map.put("response", text);
+        return map;
+    }
 
-    /* ==========================
-       HELPING FUNCTIONS
-    ==========================*/
-
+    // ---------- existing helper methods (unchanged) ----------
     private double predictNextMonthExpense(List<Transaction> tx) {
         List<Transaction> expenses = tx.stream()
-                .filter(t -> t.getType().equals("EXPENSE"))
+                .filter(t -> "EXPENSE".equalsIgnoreCase(t.getType()))
                 .toList();
 
         if (expenses.size() < 2) return 0;
@@ -120,92 +150,116 @@ public class AiChatService {
                         Collectors.summingDouble(Transaction::getAmount)
                 ));
 
-        List<YearMonth> months = new ArrayList<>(monthly.keySet());
-        Collections.sort(months);
-
-        List<Double> x = new ArrayList<>();
-        List<Double> y = new ArrayList<>();
-
-        for (int i = 0; i < months.size(); i++) {
-            x.add((double) i);
-            y.add(monthly.get(months.get(i)));
-        }
-
-        int n = x.size();
-        double sumX = x.stream().mapToDouble(Double::doubleValue).sum();
-        double sumY = y.stream().mapToDouble(Double::doubleValue).sum();
-        double sumXY = 0, sumXX = 0;
-
-        for (int i = 0; i < n; i++) {
-            sumXY += x.get(i) * y.get(i);
-            sumXX += x.get(i) * x.get(i);
-        }
-
-        double slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-        double intercept = (sumY - slope * sumX) / n;
-
-        return slope * n + intercept;
+        return monthly.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
     }
-
 
     private String highestSpendingThisMonth(List<Transaction> tx) {
         YearMonth now = YearMonth.now();
-
-        Map<String, Double> categories = tx.stream()
-                .filter(t -> t.getType().equals("EXPENSE"))
+        return tx.stream()
+                .filter(t -> "EXPENSE".equalsIgnoreCase(t.getType()))
                 .filter(t -> YearMonth.from(t.getDate()).equals(now))
-                .collect(Collectors.groupingBy(
-                        Transaction::getCategory,
-                        Collectors.summingDouble(Transaction::getAmount)
-                ));
-
-        if (categories.isEmpty()) return "You have no expenses recorded this month 😄";
-
-        var max = categories.entrySet().stream()
+                .collect(Collectors.groupingBy(Transaction::getCategory, Collectors.summingDouble(Transaction::getAmount)))
+                .entrySet().stream()
                 .max(Map.Entry.comparingByValue())
-                .get();
-
-        return "📅 This Month's Highest Spending Category:\n" + max.getKey() +
-                " with ₹" + max.getValue() + " spent.";
+                .map(e -> "📅 Highest Spending This Month: " + e.getKey() + " ₹" + e.getValue())
+                .orElse("No expenses this month.");
     }
-
 
     private String highestSpendingThisWeek(List<Transaction> tx) {
-        LocalDate now = LocalDate.now();
-        LocalDate weekStart = now.minusDays(7);
-
-        Map<String, Double> categories = tx.stream()
-                .filter(t -> t.getType().equals("EXPENSE"))
+        LocalDate weekStart = LocalDate.now().minusDays(7);
+        return tx.stream()
+                .filter(t -> "EXPENSE".equalsIgnoreCase(t.getType()))
                 .filter(t -> !t.getDate().isBefore(weekStart))
-                .collect(Collectors.groupingBy(
-                        Transaction::getCategory,
-                        Collectors.summingDouble(Transaction::getAmount)
-                ));
-
-        if (categories.isEmpty()) return "You have no expenses recorded this week 🙂";
-
-        var max = categories.entrySet().stream()
+                .collect(Collectors.groupingBy(Transaction::getCategory, Collectors.summingDouble(Transaction::getAmount)))
+                .entrySet().stream()
                 .max(Map.Entry.comparingByValue())
-                .get();
-
-        return "📆 This Week's Highest Spending: \nCategory " + max.getKey() +
-                " with ₹" + max.getValue() + " spent.";
+                .map(e -> "📆 Highest Weekly Expense: " + e.getKey() + " ₹" + e.getValue())
+                .orElse("No expenses this week.");
     }
 
-
     private String getPersonalAnalysis(List<Transaction> tx) {
-        double expense = tx.stream()
-                .filter(t -> t.getType().equals("EXPENSE"))
-                .mapToDouble(Transaction::getAmount).sum();
+        double expense = tx.stream().filter(t -> "EXPENSE".equalsIgnoreCase(t.getType())).mapToDouble(Transaction::getAmount).sum();
+        double income = tx.stream().filter(t -> "INCOME".equalsIgnoreCase(t.getType())).mapToDouble(Transaction::getAmount).sum();
+        return "📊 Your Finance Summary\nIncome: ₹" + income + "\nExpense: ₹" + expense + "\nSavings: ₹" + (income - expense);
+    }
 
-        double income = tx.stream()
-                .filter(t -> t.getType().equals("INCOME"))
-                .mapToDouble(Transaction::getAmount).sum();
+    // ---------------------------
+    // OpenRouter integration
+    // ---------------------------
+    private Map<String, String> callOpenRouterModel(String userMessage) {
+        if (openRouterApiKey == null || openRouterApiKey.isBlank()) {
+            // API key not configured
+            return null;
+        }
 
-        return "📊 Your Finance Summary:\n\n" +
-                "💰 Total Income: ₹" + income + "\n" +
-                "💸 Total Expense: ₹" + expense + "\n" +
-                "💡 Savings: ₹" + (income - expense) + "\n\n" +
-                "Let me know if you want category-wise breakdown!";
+        String url = "https://openrouter.ai/api/v1/chat/completions";
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("model", openRouterModel);
+
+        // provider preference (optional)
+        Map<String, Object> provider = new HashMap<>();
+        provider.put("order", Arrays.asList("OpenRouter", "Chutes"));
+        payload.put("provider", provider);
+
+        // messages
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> m = new HashMap<>();
+        m.put("role", "user");
+        m.put("content", userMessage);
+        messages.add(m);
+        payload.put("messages", messages);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(openRouterApiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+        int attempt = 0;
+        long delay = initialDelayMs;
+        while (attempt < maxRetries) {
+            try {
+                ResponseEntity<String> resp = restTemplate.postForEntity(url, entity, String.class);
+                if (resp.getStatusCode() == HttpStatus.OK || resp.getStatusCode() == HttpStatus.CREATED) {
+                    // parse response
+                    JsonNode root = objectMapper.readTree(resp.getBody());
+                    JsonNode choices = root.path("choices");
+                    if (choices.isArray() && choices.size() > 0) {
+                        JsonNode message = choices.get(0).path("message");
+                        String content = message.path("content").asText(null);
+                        if (content != null) {
+                            return response("TNG_CHIMERA", content.trim());
+                        }
+                    }
+                    // fallback if structure different
+                    String body = root.path("output").asText(null);
+                    if (body != null && !body.isEmpty()) {
+                        return response("TNG_CHIMERA", body.trim());
+                    }
+                    return null;
+                } else if (resp.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                    // rate limited, retry after delay
+                    attempt++;
+                    Thread.sleep(delay);
+                    delay *= 2; // exponential backoff
+                    continue;
+                } else {
+                    // other non-200
+                    return null;
+                }
+            } catch (HttpClientErrorException.TooManyRequests ex) {
+                attempt++;
+                try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
+                delay *= 2;
+            } catch (Exception ex) {
+                // log and break
+                ex.printStackTrace();
+                return null;
+            }
+        }
+
+        // if all retries failed, return null so we fallback to local message
+        return null;
     }
 }

@@ -20,7 +20,10 @@ import ProtectedRoute, { AdminRoute } from "./routes/ProtectedRoute";
 
 // 🔹 Forgot & Reset Password pages
 import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
+
+
+// ➕ Add ChangePassword Page Import
+import ChangePassword from "./pages/ChangePassword";
 
 export default function App() {
   return (
@@ -36,7 +39,6 @@ export default function App() {
 
         {/* 🔹 Forgot / Reset Password */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Admin only */}
         <Route
@@ -118,6 +120,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+      <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePassword />
             </ProtectedRoute>
           }
         />

@@ -4,6 +4,7 @@ import com.budgetwise.budgetwise.entity.Role;
 import com.budgetwise.budgetwise.entity.User;
 import com.budgetwise.budgetwise.repository.UserRepository;
 import com.budgetwise.budgetwise.service.JwtUtil;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -72,13 +74,13 @@ public class AuthController {
         String username = body.get("username");
         String password = body.get("password");
 
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+        if (username == null || username.isBlank() || 
+            password == null || password.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Username and password are required"));
         }
 
         try {
-            // ✅ This now works correctly
             authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
@@ -108,4 +110,50 @@ public class AuthController {
                     .body(Map.of("error", "Invalid username or password"));
         }
     }
+
+
+ // ================= CHANGE PASSWORD =================
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> req) {
+
+        String oldPassword = req.get("oldPassword");
+        String newPassword = req.get("newPassword");
+        String confirmPassword = req.get("confirmPassword");
+
+        if (oldPassword == null || newPassword == null || confirmPassword == null ||
+            oldPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "All fields are required"));
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "New passwords do not match"));
+        }
+
+        // Extract username from JWT token
+        String username = jwtUtil.extractUsernameFromCurrentRequest();
+
+        User user = repo.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check old password
+        if (!encoder.matches(oldPassword, user.getPassword())) {
+            return ResponseEntity.status(400)
+                    .body(Map.of("error", "Old password is incorrect"));
+        }
+
+        // Prevent same password
+        if (encoder.matches(newPassword, user.getPassword())) {
+            return ResponseEntity.status(400)
+                    .body(Map.of("error", "New password cannot be same as old password"));
+        }
+
+        // Save new password
+        user.setPassword(encoder.encode(newPassword));
+        repo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
+
 }

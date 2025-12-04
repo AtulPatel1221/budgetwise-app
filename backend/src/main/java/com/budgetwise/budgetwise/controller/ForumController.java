@@ -25,45 +25,81 @@ public class ForumController {
         this.userRepo = userRepo;
     }
 
-    // 📝 Create Post
+    // 📝 Create a new post
     @PostMapping("/posts")
     public ResponseEntity<?> createPost(@RequestBody Post post, Principal principal) {
         User user = userRepo.findByUsername(principal.getName()).orElseThrow();
         post.setUser(user);
         postRepo.save(post);
-        return ResponseEntity.ok(post);
+        return ResponseEntity.ok("Post created");
     }
 
-    // ✅ FIXED: SAFE + NO LAZY CRASH
+    // 🟦 Get all posts with comments
     @GetMapping("/posts")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getAllPosts() {
+
         List<Post> posts = postRepo.findAllWithCommentsAndSorted();
-        List<PostDTO> dtoList = posts.stream().map(PostDTO::from).toList();
+
+        List<PostDTO> dtoList = posts.stream()
+                .map(PostDTO::from)
+                .toList();
+
         return ResponseEntity.ok(dtoList);
     }
 
     // 💬 Add Comment
     @PostMapping("/comments/{postId}")
-    public ResponseEntity<?> addComment(@PathVariable Long postId, @RequestBody Comment comment, Principal principal) {
+    public ResponseEntity<?> addComment(
+            @PathVariable Long postId,
+            @RequestBody Map<String, String> body,
+            Principal principal) {
+
         User user = userRepo.findByUsername(principal.getName()).orElseThrow();
         Post post = postRepo.findById(postId).orElseThrow();
-        comment.setUser(user);
+
+        Comment comment = new Comment();
+        comment.setContent(body.get("content"));
         comment.setPost(post);
+        comment.setUser(user);
+
         commentRepo.save(comment);
-        return ResponseEntity.ok(comment);
+
+        return ResponseEntity.ok("Comment added");
     }
 
-    // ❤️ Like Post
+    // ❤️ Like post
     @PostMapping("/like/{postId}")
     public ResponseEntity<?> likePost(@PathVariable Long postId) {
         Post post = postRepo.findById(postId).orElseThrow();
         post.setLikesCount(post.getLikesCount() + 1);
         postRepo.save(post);
+
         return ResponseEntity.ok(Map.of("likes", post.getLikesCount()));
     }
 
-    // ✅ SAFE DTO
+    /* ===========================================================
+     *               DTO CLASSES (INSIDE CONTROLLER)
+     * =========================================================== */
+
+    // 🔹 CommentDTO
+    static class CommentDTO {
+        public Long id;
+        public String content;
+        public String createdAt;
+        public String username;
+
+        static CommentDTO from(Comment c) {
+            CommentDTO dto = new CommentDTO();
+            dto.id = c.getId();
+            dto.content = c.getContent();
+            dto.createdAt = c.getCreatedAt().toString();
+            dto.username = c.getUsername();
+            return dto;
+        }
+    }
+
+    // 🔹 PostDTO
     static class PostDTO {
         public Long id;
         public String title;
@@ -71,6 +107,8 @@ public class ForumController {
         public String createdAt;
         public int likesCount;
         public String username;
+
+        public List<CommentDTO> comments;
 
         static PostDTO from(Post p) {
             PostDTO dto = new PostDTO();
@@ -80,10 +118,13 @@ public class ForumController {
             dto.createdAt = p.getCreatedAt().toString();
             dto.likesCount = p.getLikesCount();
 
-            // ✅ Critical FIX: NO LAZY FAILURE
-            dto.username = (p.getUser() != null && p.getUser().getUsername() != null)
-                    ? p.getUser().getUsername()
-                    : "Unknown";
+            dto.username = p.getUser() != null ? p.getUser().getUsername() : "Unknown";
+
+            // 🔥 MAP COMMENTS HERE
+            dto.comments = p.getComments()
+                    .stream()
+                    .map(CommentDTO::from)
+                    .toList();
 
             return dto;
         }
